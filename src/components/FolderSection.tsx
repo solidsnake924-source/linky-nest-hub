@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, FolderOpen, Folder as FolderIcon, Trash2, MoreHorizontal, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { Folder, Link } from '@/types/links';
-import { LinkCard } from './LinkCard';
+import { LinkPreview } from './LinkPreview';
 import { AddLinkDialog } from './AddLinkDialog';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +25,7 @@ interface FolderSectionProps {
   onRename: (newName: string) => void;
   onAddLink: (link: Omit<Link, 'id' | 'createdAt'>) => void;
   onDeleteLink: (linkId: string) => void;
+  onUpdateLink: (linkId: string, updates: Partial<Link>) => void;
 }
 
 export function FolderSection({
@@ -34,6 +35,7 @@ export function FolderSection({
   onRename,
   onAddLink,
   onDeleteLink,
+  onUpdateLink,
 }: FolderSectionProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(folder.name);
@@ -96,17 +98,18 @@ export function FolderSection({
       </div>
 
       {folder.isExpanded && (
-        <div className="ml-6 mt-2 space-y-2 border-l-2 border-border pl-4">
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-2">
           {folder.links.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
+            <p className="col-span-full py-8 text-center text-sm text-muted-foreground">
               Aucun lien dans ce dossier
             </p>
           ) : (
             folder.links.map((link) => (
-              <LinkCard
+              <LinkPreview
                 key={link.id}
                 link={link}
                 onDelete={() => onDeleteLink(link.id)}
+                onUpdate={(updates) => onUpdateLink(link.id, updates)}
               />
             ))
           )}
