@@ -1,17 +1,26 @@
 import { useState } from 'react';
-import { ExternalLink, Trash2, Pencil, X, Check, Maximize2, Minimize2, RefreshCw } from 'lucide-react';
+import { ExternalLink, Trash2, Pencil, X, Check, Maximize2, Minimize2, RefreshCw, MoreVertical, Folder } from 'lucide-react';
 import { Link } from '@/types/links';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface LinkPreviewProps {
   link: Link;
+  folderName?: string;
+  viewMode?: 'grid' | 'list';
   onDelete: () => void;
   onUpdate: (updates: Partial<Link>) => void;
 }
 
-export function LinkPreview({ link, onDelete, onUpdate }: LinkPreviewProps) {
+export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onUpdate }: LinkPreviewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(link.title);
@@ -39,10 +48,82 @@ export function LinkPreview({ link, onDelete, onUpdate }: LinkPreviewProps) {
     setIframeKey((prev) => prev + 1);
   };
 
+  const getFaviconUrl = (url: string) => {
+    try {
+      const domain = new URL(url).hostname;
+      return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+    } catch {
+      return null;
+    }
+  };
+
+  // List view
+  if (viewMode === 'list') {
+    return (
+      <div className="group flex items-center gap-4 p-3 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+        {/* Favicon */}
+        <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden shrink-0">
+          {getFaviconUrl(link.url) ? (
+            <img 
+              src={getFaviconUrl(link.url)!} 
+              alt="" 
+              className="w-5 h-5"
+              onError={(e) => e.currentTarget.style.display = 'none'}
+            />
+          ) : (
+            <ExternalLink className="w-4 h-4 text-muted-foreground" />
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-medium text-foreground truncate">{link.title}</h3>
+            {folderName && (
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Folder className="w-3 h-3" />
+                {folderName}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground truncate">{link.url}</p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+            <a href={link.url} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Modifier
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Supprimer
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    );
+  }
+
+  // Grid view
   return (
     <div
-      className={`group relative flex flex-col rounded-xl border border-border bg-card shadow-card transition-all duration-300 hover:shadow-card-hover hover:border-primary/20 animate-fade-in overflow-hidden ${
-        isExpanded ? 'col-span-full' : ''
+      className={`group relative flex flex-col rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/20 overflow-hidden ${
+        isExpanded ? 'col-span-full row-span-2' : ''
       }`}
     >
       {/* Header */}
@@ -56,21 +137,27 @@ export function LinkPreview({ link, onDelete, onUpdate }: LinkPreviewProps) {
           />
         ) : (
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            {getFaviconUrl(link.url) && (
+              <img 
+                src={getFaviconUrl(link.url)!} 
+                alt="" 
+                className="w-4 h-4 shrink-0"
+                onError={(e) => e.currentTarget.style.display = 'none'}
+              />
+            )}
             <span className="font-medium text-foreground truncate text-sm">
               {link.title}
             </span>
-            <a
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-primary transition-colors shrink-0"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            {folderName && (
+              <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
+                <Folder className="w-3 h-3" />
+                {folderName}
+              </span>
+            )}
           </div>
         )}
 
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
           {isEditing ? (
             <>
               <Button
@@ -114,24 +201,36 @@ export function LinkPreview({ link, onDelete, onUpdate }: LinkPreviewProps) {
                   <Maximize2 className="h-3.5 w-3.5" />
                 )}
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => setIsEditing(true)}
-                title="Modifier"
+              <a
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="h-7 w-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary"
               >
-                <Pencil className="h-3.5 w-3.5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
-                onClick={onDelete}
-                title="Supprimer"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setIsEditing(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Modifier
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>
@@ -178,6 +277,7 @@ export function LinkPreview({ link, onDelete, onUpdate }: LinkPreviewProps) {
           </p>
         )}
       </div>
+
     </div>
   );
 }
