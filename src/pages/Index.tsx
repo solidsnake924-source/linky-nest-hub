@@ -13,6 +13,7 @@ const Index = () => {
     toggleFolder,
     addLink,
     deleteLink,
+    updateLink,
   } = useLinks();
 
   const totalLinks = folders.reduce((acc, f) => acc + f.links.length, 0);
@@ -62,6 +63,7 @@ const Index = () => {
                 onRename={(newName) => renameFolder(folder.id, newName)}
                 onAddLink={(link) => addLink(folder.id, link)}
                 onDeleteLink={(linkId) => deleteLink(folder.id, linkId)}
+                onUpdateLink={(linkId, updates) => updateLink(folder.id, linkId, updates)}
               />
             ))
           )}
