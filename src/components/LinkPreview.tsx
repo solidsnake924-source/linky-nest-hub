@@ -152,7 +152,7 @@ export function LinkPreview({
         isSelected 
           ? 'border-primary bg-primary/5' 
           : 'border-border bg-card hover:border-primary/20'
-      } ${isExpanded ? 'col-span-full row-span-2' : ''}`}
+      } ${isExpanded ? 'col-span-2 md:col-span-3 lg:col-span-4' : ''}`}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey) {
           onSelect?.();
