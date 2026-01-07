@@ -1,25 +1,11 @@
 import { useState } from 'react';
 import { 
-  FolderOpen, 
-  Folder as FolderIcon, 
   Plus, 
-  ChevronRight,
   HardDrive,
-  Clock,
-  Star,
-  Trash2,
-  MoreVertical,
-  Pencil
 } from 'lucide-react';
 import { Folder } from '@/types/links';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -27,15 +13,26 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { FolderItem } from './FolderItem';
+import { ColorPicker } from './ColorPicker';
 
 interface SidebarProps {
   folders: Folder[];
   selectedFolderId: string | null;
   onSelectFolder: (folderId: string | null) => void;
-  onAddFolder: (name: string) => void;
+  onAddFolder: (name: string, parentId?: string, color?: string) => void;
   onDeleteFolder: (folderId: string) => void;
   onRenameFolder: (folderId: string, newName: string) => void;
+  onUpdateFolderColor: (folderId: string, color: string) => void;
+  onToggleFolder: (folderId: string) => void;
 }
+
+// Count all links recursively
+const countAllLinks = (folders: Folder[]): number => {
+  return folders.reduce((acc, folder) => {
+    return acc + folder.links.length + countAllLinks(folder.subfolders);
+  }, 0);
+};
 
 export function Sidebar({
   folders,
@@ -44,31 +41,28 @@ export function Sidebar({
   onAddFolder,
   onDeleteFolder,
   onRenameFolder,
+  onUpdateFolderColor,
+  onToggleFolder,
 }: SidebarProps) {
   const [isAddingFolder, setIsAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [renamingFolder, setRenamingFolder] = useState<Folder | null>(null);
-  const [renameValue, setRenameValue] = useState('');
+  const [newFolderColor, setNewFolderColor] = useState('#6b7280');
 
   const handleAddFolder = (e: React.FormEvent) => {
     e.preventDefault();
     if (newFolderName.trim()) {
-      onAddFolder(newFolderName.trim());
+      onAddFolder(newFolderName.trim(), undefined, newFolderColor);
       setNewFolderName('');
+      setNewFolderColor('#6b7280');
       setIsAddingFolder(false);
     }
   };
 
-  const handleRename = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (renamingFolder && renameValue.trim()) {
-      onRenameFolder(renamingFolder.id, renameValue.trim());
-      setRenamingFolder(null);
-      setRenameValue('');
-    }
+  const handleAddSubfolder = (parentId: string, name: string, color: string) => {
+    onAddFolder(name, parentId, color);
   };
 
-  const totalLinks = folders.reduce((acc, f) => acc + f.links.length, 0);
+  const totalLinks = countAllLinks(folders);
 
   return (
     <aside className="w-64 border-r border-border bg-card flex flex-col h-full">
@@ -109,54 +103,17 @@ export function Sidebar({
           {/* Folders */}
           <div className="space-y-0.5">
             {folders.map((folder) => (
-              <div key={folder.id} className="group relative">
-                <button
-                  onClick={() => onSelectFolder(folder.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-full text-sm transition-colors ${
-                    selectedFolderId === folder.id
-                      ? 'bg-primary/10 text-primary font-medium'
-                      : 'text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  {selectedFolderId === folder.id ? (
-                    <FolderOpen className="h-5 w-5 text-primary" />
-                  ) : (
-                    <FolderIcon className="h-5 w-5 text-muted-foreground" />
-                  )}
-                  <span className="truncate flex-1 text-left">{folder.name}</span>
-                  <span className="text-xs text-muted-foreground">{folder.links.length}</span>
-                </button>
-                
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem 
-                      onClick={() => {
-                        setRenamingFolder(folder);
-                        setRenameValue(folder.name);
-                      }}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Renommer
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDeleteFolder(folder.id)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Supprimer
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <FolderItem
+                key={folder.id}
+                folder={folder}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={onSelectFolder}
+                onAddSubfolder={handleAddSubfolder}
+                onDeleteFolder={onDeleteFolder}
+                onRenameFolder={onRenameFolder}
+                onUpdateColor={onUpdateFolderColor}
+                onToggleFolder={onToggleFolder}
+              />
             ))}
           </div>
         </nav>
@@ -190,34 +147,17 @@ export function Sidebar({
               placeholder="Nom du dossier"
               autoFocus
             />
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Couleur
+              </label>
+              <ColorPicker value={newFolderColor} onChange={setNewFolderColor} />
+            </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setIsAddingFolder(false)}>
                 Annuler
               </Button>
               <Button type="submit">Créer</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Rename folder dialog */}
-      <Dialog open={!!renamingFolder} onOpenChange={() => setRenamingFolder(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Renommer le dossier</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleRename} className="space-y-4">
-            <Input
-              value={renameValue}
-              onChange={(e) => setRenameValue(e.target.value)}
-              placeholder="Nouveau nom"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setRenamingFolder(null)}>
-                Annuler
-              </Button>
-              <Button type="submit">Renommer</Button>
             </div>
           </form>
         </DialogContent>

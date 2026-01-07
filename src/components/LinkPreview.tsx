@@ -15,12 +15,24 @@ import {
 interface LinkPreviewProps {
   link: Link;
   folderName?: string;
+  folderColor?: string;
   viewMode?: 'grid' | 'list';
   onDelete: () => void;
   onUpdate: (updates: Partial<Link>) => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
 }
 
-export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onUpdate }: LinkPreviewProps) {
+export function LinkPreview({ 
+  link, 
+  folderName, 
+  folderColor, 
+  viewMode = 'grid', 
+  onDelete, 
+  onUpdate,
+  isSelected,
+  onSelect,
+}: LinkPreviewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [editTitle, setEditTitle] = useState(link.title);
@@ -60,7 +72,18 @@ export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onU
   // List view
   if (viewMode === 'list') {
     return (
-      <div className="group flex items-center gap-4 p-3 rounded-lg border border-border bg-card hover:bg-secondary/30 transition-colors">
+      <div 
+        className={`group flex items-center gap-4 p-3 pl-10 rounded-lg border transition-colors ${
+          isSelected 
+            ? 'border-primary bg-primary/5' 
+            : 'border-border bg-card hover:bg-secondary/30'
+        }`}
+        onClick={(e) => {
+          if (e.ctrlKey || e.metaKey) {
+            onSelect?.();
+          }
+        }}
+      >
         {/* Favicon */}
         <div className="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center overflow-hidden shrink-0">
           {getFaviconUrl(link.url) ? (
@@ -80,8 +103,11 @@ export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onU
           <div className="flex items-center gap-2">
             <h3 className="font-medium text-foreground truncate">{link.title}</h3>
             {folderName && (
-              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Folder className="w-3 h-3" />
+              <span 
+                className="text-xs text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1"
+                style={{ backgroundColor: `${folderColor}20` }}
+              >
+                <Folder className="w-3 h-3" style={{ color: folderColor }} />
                 {folderName}
               </span>
             )}
@@ -122,9 +148,16 @@ export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onU
   // Grid view
   return (
     <div
-      className={`group relative flex flex-col rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/20 overflow-hidden ${
-        isExpanded ? 'col-span-full row-span-2' : ''
-      }`}
+      className={`group relative flex flex-col rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md overflow-hidden ${
+        isSelected 
+          ? 'border-primary bg-primary/5' 
+          : 'border-border bg-card hover:border-primary/20'
+      } ${isExpanded ? 'col-span-full row-span-2' : ''}`}
+      onClick={(e) => {
+        if (e.ctrlKey || e.metaKey) {
+          onSelect?.();
+        }
+      }}
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b border-border bg-secondary/30 px-3 py-2">
@@ -136,7 +169,7 @@ export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onU
             placeholder="Titre"
           />
         ) : (
-          <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1 pl-6">
             {getFaviconUrl(link.url) && (
               <img 
                 src={getFaviconUrl(link.url)!} 
@@ -149,8 +182,11 @@ export function LinkPreview({ link, folderName, viewMode = 'grid', onDelete, onU
               {link.title}
             </span>
             {folderName && (
-              <span className="text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                <Folder className="w-3 h-3" />
+              <span 
+                className="text-xs text-muted-foreground px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0"
+                style={{ backgroundColor: `${folderColor}20` }}
+              >
+                <Folder className="w-3 h-3" style={{ color: folderColor }} />
                 {folderName}
               </span>
             )}
