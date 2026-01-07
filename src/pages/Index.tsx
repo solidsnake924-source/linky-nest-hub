@@ -10,9 +10,13 @@ const Index = () => {
     addFolder,
     deleteFolder,
     renameFolder,
+    updateFolderColor,
+    toggleFolder,
     addLink,
     deleteLink,
     updateLink,
+    moveLinks,
+    flattenFolders,
   } = useLinks();
 
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -36,6 +40,8 @@ const Index = () => {
           onAddFolder={addFolder}
           onDeleteFolder={deleteFolder}
           onRenameFolder={renameFolder}
+          onUpdateFolderColor={updateFolderColor}
+          onToggleFolder={toggleFolder}
         />
         
         <LinkGrid
@@ -46,6 +52,8 @@ const Index = () => {
           onAddLink={addLink}
           onDeleteLink={deleteLink}
           onUpdateLink={updateLink}
+          onMoveLinks={moveLinks}
+          allFolders={flattenFolders()}
         />
       </div>
     </div>

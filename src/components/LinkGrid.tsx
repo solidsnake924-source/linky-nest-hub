@@ -1,9 +1,17 @@
 import { useState } from 'react';
-import { Plus, FolderOpen } from 'lucide-react';
+import { Plus, FolderOpen, Check, X, Move } from 'lucide-react';
 import { Folder, Link } from '@/types/links';
 import { LinkPreview } from './LinkPreview';
 import { Button } from '@/components/ui/button';
 import { AddLinkDialog } from './AddLinkDialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface LinkGridProps {
   folders: Folder[];
@@ -13,6 +21,87 @@ interface LinkGridProps {
   onAddLink: (folderId: string, link: Omit<Link, 'id' | 'createdAt'>) => void;
   onDeleteLink: (folderId: string, linkId: string) => void;
   onUpdateLink: (folderId: string, linkId: string, updates: Partial<Link>) => void;
+  onMoveLinks: (linkIds: string[], sourceFolderId: string, targetFolderId: string) => void;
+  allFolders: Folder[];
+}
+
+// Get all links from folder and its subfolders recursively
+const getLinksFromFolder = (folder: Folder): { link: Link; folderId: string; folderName: string; folderColor?: string }[] => {
+  const result: { link: Link; folderId: string; folderName: string; folderColor?: string }[] = [];
+  
+  folder.links.forEach(link => {
+    result.push({ link, folderId: folder.id, folderName: folder.name, folderColor: folder.color });
+  });
+  
+  folder.subfolders.forEach(subfolder => {
+    result.push(...getLinksFromFolder(subfolder));
+  });
+  
+  return result;
+};
+
+// Get all links from all folders
+const getAllLinksFromFolders = (folders: Folder[]): { link: Link; folderId: string; folderName: string; folderColor?: string }[] => {
+  const result: { link: Link; folderId: string; folderName: string; folderColor?: string }[] = [];
+  folders.forEach(folder => {
+    result.push(...getLinksFromFolder(folder));
+  });
+  return result;
+};
+
+// Find folder by ID recursively
+const findFolderById = (folders: Folder[], id: string): Folder | null => {
+  for (const folder of folders) {
+    if (folder.id === id) return folder;
+    const found = findFolderById(folder.subfolders, id);
+    if (found) return found;
+  }
+  return null;
+};
+
+// Render folder tree for move dialog
+function FolderTree({ 
+  folders, 
+  selectedId, 
+  onSelect, 
+  excludeId,
+  depth = 0 
+}: { 
+  folders: Folder[]; 
+  selectedId: string | null; 
+  onSelect: (id: string) => void; 
+  excludeId?: string;
+  depth?: number;
+}) {
+  return (
+    <div className="space-y-0.5">
+      {folders.filter(f => f.id !== excludeId).map((folder) => (
+        <div key={folder.id}>
+          <button
+            onClick={() => onSelect(folder.id)}
+            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors ${
+              selectedId === folder.id
+                ? 'bg-primary/10 text-primary font-medium'
+                : 'text-foreground hover:bg-secondary'
+            }`}
+            style={{ paddingLeft: `${depth * 16 + 8}px` }}
+          >
+            <FolderOpen className="h-4 w-4" style={{ color: folder.color }} />
+            <span className="truncate">{folder.name}</span>
+          </button>
+          {folder.subfolders.length > 0 && (
+            <FolderTree
+              folders={folder.subfolders}
+              selectedId={selectedId}
+              onSelect={onSelect}
+              excludeId={excludeId}
+              depth={depth + 1}
+            />
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function LinkGrid({
@@ -23,31 +112,25 @@ export function LinkGrid({
   onAddLink,
   onDeleteLink,
   onUpdateLink,
+  onMoveLinks,
+  allFolders,
 }: LinkGridProps) {
+  const [selectedLinks, setSelectedLinks] = useState<Map<string, string>>(new Map()); // linkId -> folderId
+  const [isMoving, setIsMoving] = useState(false);
+  const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
+
   const selectedFolder = selectedFolderId 
-    ? folders.find(f => f.id === selectedFolderId) 
+    ? findFolderById(folders, selectedFolderId)
     : null;
 
   // Get links based on selection and search
   const getFilteredLinks = () => {
-    let linksWithFolder: { link: Link; folderId: string; folderName: string }[] = [];
+    let linksWithFolder: { link: Link; folderId: string; folderName: string; folderColor?: string }[] = [];
 
     if (selectedFolder) {
-      linksWithFolder = selectedFolder.links.map(link => ({
-        link,
-        folderId: selectedFolder.id,
-        folderName: selectedFolder.name,
-      }));
+      linksWithFolder = getLinksFromFolder(selectedFolder);
     } else {
-      folders.forEach(folder => {
-        folder.links.forEach(link => {
-          linksWithFolder.push({
-            link,
-            folderId: folder.id,
-            folderName: folder.name,
-          });
-        });
-      });
+      linksWithFolder = getAllLinksFromFolders(folders);
     }
 
     if (searchQuery) {
@@ -65,11 +148,67 @@ export function LinkGrid({
 
   const filteredLinks = getFilteredLinks();
 
+  const toggleLinkSelection = (linkId: string, folderId: string) => {
+    setSelectedLinks(prev => {
+      const next = new Map(prev);
+      if (next.has(linkId)) {
+        next.delete(linkId);
+      } else {
+        next.set(linkId, folderId);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    const next = new Map<string, string>();
+    filteredLinks.forEach(({ link, folderId }) => {
+      next.set(link.id, folderId);
+    });
+    setSelectedLinks(next);
+  };
+
+  const clearSelection = () => {
+    setSelectedLinks(new Map());
+  };
+
+  const handleMove = () => {
+    if (!targetFolderId) return;
+    
+    // Group links by source folder
+    const linksByFolder = new Map<string, string[]>();
+    selectedLinks.forEach((folderId, linkId) => {
+      if (!linksByFolder.has(folderId)) {
+        linksByFolder.set(folderId, []);
+      }
+      linksByFolder.get(folderId)!.push(linkId);
+    });
+
+    // Move links from each source folder
+    linksByFolder.forEach((linkIds, sourceFolderId) => {
+      if (sourceFolderId !== targetFolderId) {
+        onMoveLinks(linkIds, sourceFolderId, targetFolderId);
+      }
+    });
+
+    setSelectedLinks(new Map());
+    setIsMoving(false);
+    setTargetFolderId(null);
+  };
+
+  const isSelectionMode = selectedLinks.size > 0;
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card">
         <div className="flex items-center gap-2">
+          {selectedFolder && (
+            <div 
+              className="w-3 h-3 rounded-full shrink-0"
+              style={{ backgroundColor: selectedFolder.color }}
+            />
+          )}
           <FolderOpen className="h-5 w-5 text-muted-foreground" />
           <h2 className="font-medium text-foreground">
             {selectedFolder ? selectedFolder.name : 'Tous les liens'}
@@ -79,9 +218,29 @@ export function LinkGrid({
           </span>
         </div>
         
-        {selectedFolder && (
-          <AddLinkDialog onAdd={(link) => onAddLink(selectedFolder.id, link)} />
-        )}
+        <div className="flex items-center gap-2">
+          {isSelectionMode ? (
+            <>
+              <span className="text-sm text-muted-foreground">
+                {selectedLinks.size} sélectionné(s)
+              </span>
+              <Button variant="outline" size="sm" onClick={selectAll}>
+                Tout sélectionner
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setIsMoving(true)}>
+                <Move className="h-4 w-4 mr-2" />
+                Déplacer
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearSelection}>
+                <X className="h-4 w-4" />
+              </Button>
+            </>
+          ) : (
+            selectedFolder && (
+              <AddLinkDialog onAdd={(link) => onAddLink(selectedFolder.id, link)} />
+            )
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -114,19 +273,66 @@ export function LinkGrid({
                 : 'flex flex-col gap-3'
             }
           >
-            {filteredLinks.map(({ link, folderId, folderName }) => (
-              <LinkPreview
-                key={link.id}
-                link={link}
-                folderName={!selectedFolder ? folderName : undefined}
-                viewMode={viewMode}
-                onDelete={() => onDeleteLink(folderId, link.id)}
-                onUpdate={(updates) => onUpdateLink(folderId, link.id, updates)}
-              />
+            {filteredLinks.map(({ link, folderId, folderName, folderColor }) => (
+              <div key={link.id} className="relative">
+                {/* Selection checkbox */}
+                <div 
+                  className={`absolute top-2 left-2 z-10 transition-opacity ${
+                    isSelectionMode ? 'opacity-100' : 'opacity-0 hover:opacity-100'
+                  }`}
+                >
+                  <Checkbox
+                    checked={selectedLinks.has(link.id)}
+                    onCheckedChange={() => toggleLinkSelection(link.id, folderId)}
+                    className="bg-background border-2"
+                  />
+                </div>
+                <LinkPreview
+                  link={link}
+                  folderName={!selectedFolder ? folderName : undefined}
+                  folderColor={folderColor}
+                  viewMode={viewMode}
+                  onDelete={() => onDeleteLink(folderId, link.id)}
+                  onUpdate={(updates) => onUpdateLink(folderId, link.id, updates)}
+                  isSelected={selectedLinks.has(link.id)}
+                  onSelect={() => toggleLinkSelection(link.id, folderId)}
+                />
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Move dialog */}
+      <Dialog open={isMoving} onOpenChange={setIsMoving}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              Déplacer {selectedLinks.size} lien(s)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Choisissez le dossier de destination :
+            </p>
+            <ScrollArea className="h-64 border border-border rounded-lg p-2">
+              <FolderTree
+                folders={folders}
+                selectedId={targetFolderId}
+                onSelect={setTargetFolderId}
+              />
+            </ScrollArea>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsMoving(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleMove} disabled={!targetFolderId}>
+                Déplacer
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
