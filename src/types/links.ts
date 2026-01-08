@@ -4,6 +4,7 @@ export interface Link {
   url: string;
   description?: string;
   favicon?: string;
+  comment?: string;
   createdAt: number;
 }
 

@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 interface AddLinkDialogProps {
-  onAdd: (link: { title: string; url: string; description?: string }) => void;
+  onAdd: (link: { title: string; url: string; description?: string; comment?: string }) => void;
 }
 
 export function AddLinkDialog({ onAdd }: AddLinkDialogProps) {
@@ -21,6 +21,7 @@ export function AddLinkDialog({ onAdd }: AddLinkDialogProps) {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [comment, setComment] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,11 +36,13 @@ export function AddLinkDialog({ onAdd }: AddLinkDialogProps) {
       title: title.trim(),
       url: formattedUrl,
       description: description.trim() || undefined,
+      comment: comment.trim() || undefined,
     });
 
     setTitle('');
     setUrl('');
     setDescription('');
+    setComment('');
     setOpen(false);
   };
 
@@ -83,6 +86,16 @@ export function AddLinkDialog({ onAdd }: AddLinkDialogProps) {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Une courte description..."
+              rows={2}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="comment">Commentaire (optionnel)</Label>
+            <Textarea
+              id="comment"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Notes, annotations, contexte..."
               rows={2}
             />
           </div>
