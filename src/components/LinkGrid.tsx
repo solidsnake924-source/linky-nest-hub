@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Plus, FolderOpen, Check, X, Move } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, FolderOpen, Check, X, Move, Search } from 'lucide-react';
 import { Folder, Link } from '@/types/links';
 import { LinkPreview } from './LinkPreview';
 import { Button } from '@/components/ui/button';
 import { AddLinkDialog } from './AddLinkDialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -65,17 +66,32 @@ function FolderTree({
   selectedId, 
   onSelect, 
   excludeId,
-  depth = 0 
+  depth = 0,
+  searchQuery = ''
 }: { 
   folders: Folder[]; 
   selectedId: string | null; 
   onSelect: (id: string) => void; 
   excludeId?: string;
   depth?: number;
+  searchQuery?: string;
 }) {
+  // Filter folders based on search query
+  const filteredFolders = folders.filter(f => {
+    if (f.id === excludeId) return false;
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    // Check if folder name matches or any subfolder matches
+    const nameMatches = f.name.toLowerCase().includes(query);
+    const hasMatchingSubfolder = f.subfolders.some(sf => 
+      sf.name.toLowerCase().includes(query)
+    );
+    return nameMatches || hasMatchingSubfolder;
+  });
+
   return (
     <div className="space-y-0.5">
-      {folders.filter(f => f.id !== excludeId).map((folder) => (
+      {filteredFolders.map((folder) => (
         <div key={folder.id}>
           <button
             onClick={() => onSelect(folder.id)}
@@ -96,6 +112,7 @@ function FolderTree({
               onSelect={onSelect}
               excludeId={excludeId}
               depth={depth + 1}
+              searchQuery={searchQuery}
             />
           )}
         </div>
@@ -118,8 +135,9 @@ export function LinkGrid({
   const [selectedLinks, setSelectedLinks] = useState<Map<string, string>>(new Map()); // linkId -> folderId
   const [isMoving, setIsMoving] = useState(false);
   const [targetFolderId, setTargetFolderId] = useState<string | null>(null);
+  const [folderSearchQuery, setFolderSearchQuery] = useState('');
 
-  const selectedFolder = selectedFolderId 
+  const selectedFolder = selectedFolderId
     ? findFolderById(folders, selectedFolderId)
     : null;
 
@@ -304,7 +322,10 @@ export function LinkGrid({
       </div>
 
       {/* Move dialog */}
-      <Dialog open={isMoving} onOpenChange={setIsMoving}>
+      <Dialog open={isMoving} onOpenChange={(open) => {
+        setIsMoving(open);
+        if (!open) setFolderSearchQuery('');
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
@@ -312,14 +333,21 @@ export function LinkGrid({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Choisissez le dossier de destination :
-            </p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher un dossier..."
+                value={folderSearchQuery}
+                onChange={(e) => setFolderSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <ScrollArea className="h-64 border border-border rounded-lg p-2">
               <FolderTree
                 folders={folders}
                 selectedId={targetFolderId}
                 onSelect={setTargetFolderId}
+                searchQuery={folderSearchQuery}
               />
             </ScrollArea>
             <div className="flex justify-end gap-2">

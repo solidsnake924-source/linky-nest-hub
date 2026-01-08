@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ExternalLink, Trash2, Pencil, X, Check, Maximize2, Minimize2, RefreshCw, MoreVertical, Folder } from 'lucide-react';
+import { ExternalLink, Trash2, Pencil, X, Check, Maximize2, Minimize2, RefreshCw, MoreVertical, Folder, MessageSquare } from 'lucide-react';
 import { Link } from '@/types/links';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +38,7 @@ export function LinkPreview({
   const [editTitle, setEditTitle] = useState(link.title);
   const [editUrl, setEditUrl] = useState(link.url);
   const [editDescription, setEditDescription] = useState(link.description || '');
+  const [editComment, setEditComment] = useState(link.comment || '');
   const [iframeKey, setIframeKey] = useState(0);
 
   const handleSave = () => {
@@ -45,6 +46,7 @@ export function LinkPreview({
       title: editTitle,
       url: editUrl,
       description: editDescription,
+      comment: editComment,
     });
     setIsEditing(false);
   };
@@ -53,6 +55,7 @@ export function LinkPreview({
     setEditTitle(link.title);
     setEditUrl(link.url);
     setEditDescription(link.description || '');
+    setEditComment(link.comment || '');
     setIsEditing(false);
   };
 
@@ -145,14 +148,14 @@ export function LinkPreview({
     );
   }
 
-  // Grid view
+  // Grid view - expanded takes full width of row
   return (
     <div
       className={`group relative flex flex-col rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md overflow-hidden ${
         isSelected 
           ? 'border-primary bg-primary/5' 
           : 'border-border bg-card hover:border-primary/20'
-      } ${isExpanded ? 'col-span-2 md:col-span-3 lg:col-span-4' : ''}`}
+      } ${isExpanded ? 'col-span-full' : ''}`}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey) {
           onSelect?.();
@@ -287,11 +290,17 @@ export function LinkPreview({
             className="text-xs min-h-[60px] resize-none"
             placeholder="Description (optionnel)"
           />
+          <Textarea
+            value={editComment}
+            onChange={(e) => setEditComment(e.target.value)}
+            className="text-xs min-h-[60px] resize-none"
+            placeholder="Commentaire (notes, annotations...)"
+          />
         </div>
       )}
 
-      {/* Iframe preview */}
-      <div className={`relative bg-background ${isExpanded ? 'h-[600px]' : 'h-[280px]'}`}>
+      {/* Iframe preview - focus on content */}
+      <div className={`relative bg-background ${isExpanded ? 'h-[70vh]' : 'h-[280px]'}`}>
         <iframe
           key={iframeKey}
           src={link.url}
@@ -311,6 +320,12 @@ export function LinkPreview({
           <p className="text-xs text-muted-foreground/70 truncate mt-0.5">
             {link.description}
           </p>
+        )}
+        {link.comment && !isEditing && (
+          <div className="flex items-start gap-1 mt-1 text-xs text-primary/80">
+            <MessageSquare className="h-3 w-3 mt-0.5 shrink-0" />
+            <p className="line-clamp-2">{link.comment}</p>
+          </div>
         )}
       </div>
 
