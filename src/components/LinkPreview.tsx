@@ -148,14 +148,14 @@ export function LinkPreview({
     );
   }
 
-  // Grid view - expanded takes full width of row
+  // Grid view - expanded takes 2 columns horizontally
   return (
     <div
       className={`group relative flex flex-col rounded-xl border shadow-sm transition-all duration-200 hover:shadow-md overflow-hidden ${
         isSelected 
           ? 'border-primary bg-primary/5' 
           : 'border-border bg-card hover:border-primary/20'
-      } ${isExpanded ? 'col-span-full' : ''}`}
+      } ${isExpanded ? 'col-span-2' : ''}`}
       onClick={(e) => {
         if (e.ctrlKey || e.metaKey) {
           onSelect?.();
@@ -299,8 +299,8 @@ export function LinkPreview({
         </div>
       )}
 
-      {/* Iframe preview - focus on content */}
-      <div className={`relative bg-background ${isExpanded ? 'h-[70vh]' : 'h-[280px]'}`}>
+      {/* Iframe preview - same height, wider when expanded */}
+      <div className="relative bg-background h-[280px]">
         <iframe
           key={iframeKey}
           src={link.url}
